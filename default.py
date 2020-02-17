@@ -4,7 +4,7 @@ from traceback import print_exc
 from datetime import datetime, date, timedelta
 from dateutil import tz
 from operator import itemgetter
-import xbmc, xbmcgui, xbmcaddon, xbmcvfs
+import xbmc, xbmcaddon, xbmcgui, xbmcvfs
 try:
     import simplejson as json
 except ImportError:
@@ -34,7 +34,7 @@ MAX_DEBUG_LOG_LEVEL = 2
 
 NEXTAIRED_DB = 'next.aired.db'
 COUNTRY_DB = 'country.db'
-OLD_FILES = [ 'nextaired.db', 'next_aired.db', 'canceled.db', 'cancelled.db' ]
+OLD_FILES = [ 'nextaired.db', 'next_aired.db', 'canceled.db', 'cancelled.db', 'country.db' ]
 LISTITEM_ART = [ 'poster', 'banner', 'clearlogo' ] # This order MUST match the settings.xml list!!
 USEFUL_ART = LISTITEM_ART + [ 'characterart', 'clearart', 'fanart', 'landscape' ]
 LEADING_ZERO_REGEX = re.compile(r"^0")
@@ -314,10 +314,9 @@ class NextAired:
     def load_data(self):
         if self.RESET:
             self.rm_file(NEXTAIRED_DB)
-            self.rm_file(COUNTRY_DB)
 
         # Snag our TV-network -> Country mapping DB.
-        cl = self.get_list(COUNTRY_DB)
+        cl = self.get_list(COUNTRY_DB, __resource__)
         self.country_dict = (cl.pop(0) if cl else {})
         self.country_last_update = (cl.pop() if cl else 0)
         db_ver = (cl.pop(0) if cl else 0)
@@ -456,16 +455,6 @@ class NextAired:
                 for tid, show in show_dict.iteritems():
                     if 'show_changed' not in show:
                         show['show_changed'] = 1
-            # We want to recreate our country DB every week.
-            if len(self.country_dict) < 500 or self.now - self.country_last_update >= 7*24*60*60:
-                try:
-                    log("### grabbing a new country mapping list", level=1)
-                    if not self.SILENT:
-                        DIALOG_PROGRESS.update(0, __language__(32102), "country.db")
-                    self.country_dict = CountryLookup().get_country_dict()
-                    self.save_file([self.country_dict, COUNTRY_DB_VER, self.now], COUNTRY_DB)
-                except:
-                    pass
             slang = __addon__.getSetting("SearchLang").split(' ')[0]
             log('### search language = "%s"' % slang, level=2)
             tvdb = TheTVDB('1D62F2F90030C444', slang, want_raw = True)
@@ -514,7 +503,7 @@ class NextAired:
                 else:
                     name = '/%s/' % tid
                 # This fake data in the art hash ensures that we trust the tid value.
-                fake_art = {'ExtraShow': 'http://thetvdb.com/fake/%s-fake.jpg' % tid}
+                fake_art = {'ExtraShow': 'https://www.thetvdb.com/fake/%s-fake.jpg' % tid}
                 TVlist.append((name, name, fake_art, '', '', tid, ''))
 
         omitShow = {}
@@ -973,7 +962,7 @@ class NextAired:
         current_show['x_art'] = {}
         for art_type in ('banner', 'fanart', 'poster'):
             if art_type in show and show[art_type] != '':
-                current_show['x_art'][art_type] = 'http://thetvdb.com/banners/%s' % show[art_type]
+                current_show['x_art'][art_type] = 'https://www.thetvdb.com/banners/%s' % show[art_type]
 
         can_re = re.compile(r"canceled|ended", re.IGNORECASE)
         if can_re.search(current_show['Status']):
@@ -1135,7 +1124,6 @@ class NextAired:
                     show_dict[tid] = show
             self.save_data(show_dict)
         self.rm_file(NEXTAIRED_DB, __profilepath__)
-        self.rm_file(COUNTRY_DB, __profilepath__)
 
     def set_episode_info(self, label, prefix, when, ep):
         if ep and ep['name'] is not None:
@@ -1207,8 +1195,7 @@ class NextAired:
     @staticmethod
     def load_file(file_path):
         try:
-            with open(file_path, 'r') as f:
-                return eval(f.read())
+            return eval(file(file_path, "r").read())
         except:
             print_exc()
             log("### ERROR could not load file %s" % file_path, level=0)
@@ -1219,8 +1206,7 @@ class NextAired:
         path = os.path.join(__datapath__, filename)
         try:
             if txt:
-                with open(path, 'w') as f:
-                    f.write(repr(txt))
+                file(path, "w").write(repr(txt))
             else:
                 NextAired.rm_file(filename)
         except:

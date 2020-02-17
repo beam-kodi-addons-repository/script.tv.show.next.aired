@@ -1,3 +1,13 @@
+-6.0.17 (2020-02-18)
+- Updated settings to better defaults (banner/today style w/inc yesterday/less aggressive on bg scan).
+- Switched to script.module.dateutil so tz data is updated.
+- Redid country_lookup logic to pull info from tvdb network pages + updated zone map.
+- Updated thetvdb references to "https://www.thetvdb.com"
+- Updated thetvdb updates url to xml as the zip endpoint is no longer valid.
+- Removed defunct tvrage
+- Removed defunct artwork.downloader integration (Users should switch to artwork.beef)
+- Updated fanarttv apikey, added setting to set personal apikey
+
 -6.0.16 (2018-11-13)
 - Updated script for Leia: "StringCompare" -> "String.IsEqual", "!IsEmpty" -> "!String.IsEmpty"
 - Added bg container for top metadata when fanart is used to maintain readability.

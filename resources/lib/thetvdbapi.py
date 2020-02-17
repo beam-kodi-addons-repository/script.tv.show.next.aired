@@ -32,7 +32,7 @@ class TheTVDB(object):
     def __init__(self, api_key='2B8557E0CBF7D720', language = 'en', want_raw = False):
         #http://thetvdb.com/api/<apikey>/<request>
         self.api_key = api_key
-        self.mirror_url = "http://thetvdb.com"
+        self.mirror_url = "https://www.thetvdb.com"
         self.base_url =  self.mirror_url + "/api"
         self.base_key_url = "%s/%s" % (self.base_url, self.api_key)
         self.language = language
@@ -191,9 +191,8 @@ class TheTVDB(object):
 
 
     def _get_update_info(self, period, filter_func = None, callback = None):
-        url = "%s/updates/updates_%s.zip" % (self.base_zip_url, period)
-        zip_name = 'updates_%s.xml' % period
-        return self._get_xml_data(url, filter_func, zip_name, callback)
+        url = "%s/updates/updates_%s.xml" % (self.base_xml_url, period)
+        return self._get_xml_data(url, filter_func, None, callback)
 
 
     def _get_xml_data(self, url, filter_func = None, zip_name = None, callback = None):

@@ -1,10 +1,9 @@
-"""
-This library/script will grab a web page from thetvdb.com and use
-the TV network info in the SELECT OPTIONs to make a lookup table
-that can be used to determine what country a show is broadcast in.
-"""
-import re, sys, urllib, contextlib
+﻿import os, re, sys, urllib, time
 
+COUNTRY_DB = 'country.db'
+COUNTRY_DB_VER = 1
+
+# updated 01/31/2020 // --zones
 COUNTRY_ZONES = {
     'afghanistan': 'Asia/Kabul',
     'aland islands': 'Europe/Mariehamn',
@@ -35,22 +34,22 @@ COUNTRY_ZONES = {
     'bonaire, saint eustatius and saba': 'America/Kralendijk',
     'bosnia and herzegovina': 'Europe/Sarajevo',
     'botswana': 'Africa/Gaborone',
-    'brazil': 'America/Sao_Paulo',
+    'brazil': 'America/Noronha',
     'british indian ocean territory': 'Indian/Chagos',
     'british virgin islands': 'America/Tortola',
     'brunei': 'Asia/Brunei',
     'bulgaria': 'Europe/Sofia',
     'burkina faso': 'Africa/Ouagadougou',
     'burundi': 'Africa/Bujumbura',
+    'cabo verde': 'Atlantic/Cape_Verde',
     'cambodia': 'Asia/Phnom_Penh',
     'cameroon': 'Africa/Douala',
     'canada': 'America/Moncton',
-    'cape verde': 'Atlantic/Cape_Verde',
     'cayman islands': 'America/Cayman',
     'central african republic': 'Africa/Bangui',
     'chad': 'Africa/Ndjamena',
     'chile': 'America/Santiago',
-    'china': 'Asia/Urumqi',
+    'china': 'Asia/Shanghai',
     'christmas island': 'Indian/Christmas',
     'cocos islands': 'Indian/Cocos',
     'colombia': 'America/Bogota',
@@ -61,19 +60,19 @@ COUNTRY_ZONES = {
     'cuba': 'America/Havana',
     'curacao': 'America/Curacao',
     'cyprus': 'Asia/Nicosia',
-    'czech republic': 'Europe/Prague',
+    'czechia': 'Europe/Prague',
     'democratic republic of the congo': 'Africa/Lubumbashi',
     'denmark': 'Europe/Copenhagen',
     'djibouti': 'Africa/Djibouti',
     'dominica': 'America/Dominica',
     'dominican republic': 'America/Santo_Domingo',
-    'east timor': 'Asia/Dili',
     'ecuador': 'America/Guayaquil',
     'egypt': 'Africa/Cairo',
     'el salvador': 'America/El_Salvador',
     'equatorial guinea': 'Africa/Malabo',
     'eritrea': 'Africa/Asmara',
     'estonia': 'Europe/Tallinn',
+    'eswatini': 'Africa/Mbabane',
     'ethiopia': 'Africa/Addis_Ababa',
     'falkland islands': 'Atlantic/Stanley',
     'faroe islands': 'Atlantic/Faroe',
@@ -117,7 +116,7 @@ COUNTRY_ZONES = {
     'japan': 'Asia/Tokyo',
     'jersey': 'Europe/Jersey',
     'jordan': 'Asia/Amman',
-    'kazakhstan': 'Asia/Qyzylorda',
+    'kazakhstan': 'Asia/Qostanay',
     'kenya': 'Africa/Nairobi',
     'kiribati': 'Pacific/Kiritimati',
     'kuwait': 'Asia/Kuwait',
@@ -132,7 +131,6 @@ COUNTRY_ZONES = {
     'lithuania': 'Europe/Vilnius',
     'luxembourg': 'Europe/Luxembourg',
     'macao': 'Asia/Macau',
-    'macedonia': 'Europe/Skopje',
     'madagascar': 'Indian/Antananarivo',
     'malawi': 'Africa/Blantyre',
     'malaysia': 'Asia/Kuching',
@@ -144,7 +142,7 @@ COUNTRY_ZONES = {
     'mauritania': 'Africa/Nouakchott',
     'mauritius': 'Indian/Mauritius',
     'mayotte': 'Indian/Mayotte',
-    'mexico': 'America/Monterrey',
+    'mexico': 'America/Cancun',
     'micronesia': 'Pacific/Pohnpei',
     'moldova': 'Europe/Chisinau',
     'monaco': 'Europe/Monaco',
@@ -153,7 +151,7 @@ COUNTRY_ZONES = {
     'montserrat': 'America/Montserrat',
     'morocco': 'Africa/Casablanca',
     'mozambique': 'Africa/Maputo',
-    'myanmar': 'Asia/Rangoon',
+    'myanmar': 'Asia/Yangon',
     'namibia': 'Africa/Windhoek',
     'nauru': 'Pacific/Nauru',
     'nepal': 'Asia/Kathmandu',
@@ -166,6 +164,7 @@ COUNTRY_ZONES = {
     'niue': 'Pacific/Niue',
     'norfolk island': 'Pacific/Norfolk',
     'north korea': 'Asia/Pyongyang',
+    'north macedonia': 'Europe/Skopje',
     'northern mariana islands': 'Pacific/Saipan',
     'norway': 'Europe/Oslo',
     'oman': 'Asia/Muscat',
@@ -173,7 +172,7 @@ COUNTRY_ZONES = {
     'palau': 'Pacific/Palau',
     'palestinian territory': 'Asia/Hebron',
     'panama': 'America/Panama',
-    'papua new guinea': 'Pacific/Port_Moresby',
+    'papua new guinea': 'Pacific/Bougainville',
     'paraguay': 'America/Asuncion',
     'peru': 'America/Lima',
     'philippines': 'Asia/Manila',
@@ -185,7 +184,7 @@ COUNTRY_ZONES = {
     'republic of the congo': 'Africa/Brazzaville',
     'reunion': 'Indian/Reunion',
     'romania': 'Europe/Bucharest',
-    'russia': 'Asia/Magadan',
+    'russia': 'Asia/Kamchatka',
     'rwanda': 'Africa/Kigali',
     'saint barthelemy': 'America/St_Barthelemy',
     'saint helena': 'Atlantic/St_Helena',
@@ -217,7 +216,6 @@ COUNTRY_ZONES = {
     'sudan': 'Africa/Khartoum',
     'suriname': 'America/Paramaribo',
     'svalbard and jan mayen': 'Arctic/Longyearbyen',
-    'swaziland': 'Africa/Mbabane',
     'sweden': 'Europe/Stockholm',
     'switzerland': 'Europe/Zurich',
     'syria': 'Asia/Damascus',
@@ -225,6 +223,7 @@ COUNTRY_ZONES = {
     'tajikistan': 'Asia/Dushanbe',
     'tanzania': 'Africa/Dar_es_Salaam',
     'thailand': 'Asia/Bangkok',
+    'timor leste': 'Asia/Dili',
     'togo': 'Africa/Lome',
     'tokelau': 'Pacific/Fakaofo',
     'tonga': 'Pacific/Tongatapu',
@@ -256,63 +255,41 @@ COUNTRY_ZONES = {
     'unknown': 'UTC',
 }
 
-# Sadly, there are a bunch of duplicates in the station -> country mapping names.
-# These overrides try to choose the most popular country for some of those names.
-OVERRIDES = {
-    'ABC': 'USA',
-    'BNN': 'Canada',
-    'Bravo': 'USA',
-    'CBC': 'Canada',
-    'Channel 5': 'United Kingdom',
-    'CTV': 'Canada',
-    'Discovery Turbo': 'USA',
-    'E!': 'USA',
-    'FOX': 'USA',
-    'HBO': 'USA',
-    'HGTV': 'USA',
-    'MTV': 'USA',
-    'National Geographic': 'USA',
-    'NTV': 'Japan',
-    'SBS': 'Australia',
-    'Sky Cinema': 'United Kingdom',
-    'STV': 'United Kingdom',
-    'Travel Channel': 'USA',
-    'TVA': 'Canada',
-    'YTV': 'Canada',
-}
 
 class CountryLookup(object):
-    def __init__(self, series_id = 70386):
-        url = 'http://thetvdb.com/?tab=series&id=%d&lid=7' % series_id
-
-        sel_re = re.compile(r'<select.*name="changenetwork"')
-        opt_re = re.compile(r'<option.*value="(.*?)">[^<]+\((.*?)\)')
-
+    def __init__(self):
+        import requests
+        from bs4 import BeautifulSoup
         self.country_dict = {}
-        in_select = False
-        saw_data = False
+        with requests.Session() as s:
+            for i in range(1, 29):
+                url = "https://www.thetvdb.com/networks?page=%s" % i
+                response = s.get(url)
+                soup = BeautifulSoup(response.text, "html.parser")
+                print "Loading: %s" % (url)
+                for tr in soup.find_all('tr')[1:]:
+                    tds = tr.find_all('td')
+                    country = tds[2].get_text(strip=True)
+                    # fix tvdb mapping name so it aligns with our zone map
+                    if country == u'United States of America':
+                        country = u'United States'
+                    elif country == u'The Netherlands':
+                        country = u'Netherlands'
+                    elif country == u'Great Britain':
+                        country = u'United Kingdom'
+                    elif country == u'Swiss Confederation':
+                        country = u'Switzerland'
+                    elif country == u'Czech Republic':
+                        country = u'Czechia'
+                    self.country_dict[tds[0].get_text(strip=True)] = country
+                    #print "'%s': '%s'" % (tds[0].text.encode('utf-8').strip(), tds[2].text.encode('utf-8').strip())
+                time.sleep(1)
 
-        with contextlib.closing(urllib.urlopen(url)) as data:
-            for line in data:
-                if in_select:
-                    m = opt_re.search(line)
-                    if m:
-                        station, country = (m.group(1), m.group(2))
-                        if country == 'United States':
-                            country = 'USA'
-                        self.country_dict[station] = country
-                        saw_data = True
-                    elif saw_data:
-                        break
-                elif sel_re.search(line):
-                    in_select = True
-
-        if len(self.country_dict) < 500:
-            raise Exception("Country data was not parsed correctly.")
-
-        for station, country in OVERRIDES.iteritems():
-            self.country_dict[station] = country
-        self.country_dict[''] = 'Unknown'
+            # default country which defaults to UTC
+            self.country_dict[''] = u'Unknown'
+            print "Scraped %s networks from tvdb" % (len(self.country_dict)-1)
+            if len(self.country_dict) < 50:
+                raise Exception("Country data was not parsed correctly.")
 
     def get_country_dict(self):
         return self.country_dict
@@ -325,26 +302,26 @@ class CountryLookup(object):
     def get_zones():
         url = 'http://download.geonames.org/export/dump/countryInfo.txt'
         iso_map = {}
-        with contextlib.closing(urllib.urlopen(url)) as data:
-            for line in data:
-                if line.startswith("#"):
-                    continue
-                iso, iso3, iso_num, fips, country, extra = line.split("\t", 5)
-                iso_map[iso] = country.lower().strip()
+        data = urllib.urlopen(url)
+        for line in data:
+            if line.startswith("#"):
+                continue
+            iso, iso3, iso_num, fips, country, extra = line.split("\t", 5)
+            iso_map[iso] = country.lower().strip()
 
         url = 'http://download.geonames.org/export/dump/timeZones.txt'
         zone_map = {}
-        with contextlib.closing(urllib.urlopen(url)) as data:
-            for line in data:
-                iso, tz_id, goff1, goff2, goff3 = line.split("\t")
-                if tz_id in ("Pacific/Easter", "America/St_Johns") or iso in ('AQ', 'UM'):
+        data = urllib.urlopen(url)
+        for line in data:
+            iso, tz_id, goff1, goff2, goff3 = line.split("\t")
+            if tz_id in ("Pacific/Easter", "America/St_Johns") or iso in ('AQ', 'UM'):
+                continue
+            country = iso_map.get(iso, False)
+            if country:
+                goff1 = float(goff1)
+                if country in zone_map and zone_map[country][0] > goff1:
                     continue
-                country = iso_map.get(iso, False)
-                if country:
-                    goff1 = float(goff1)
-                    if country in zone_map and zone_map[country][0] > goff1:
-                        continue
-                    zone_map[country] = (goff1, tz_id)
+                zone_map[country] = (goff1, tz_id)
 
         for country in zone_map:
             zone_map[country] = zone_map[country][1]
@@ -355,12 +332,13 @@ class CountryLookup(object):
 
         return zone_map
 
+
 # Some helper code to check on the data and output a new timezone list.
 def main(argv):
     import getopt
 
     try:
-        opts, args = getopt.getopt(argv, "h", ["map", "zones", "test", "help"])
+        opts, args = getopt.getopt(argv, "h", ["map", "zones", "test", "save", "help"])
     except getopt.GetoptError:
         usage()
     if not opts:
@@ -404,21 +382,29 @@ def main(argv):
                 sys.stdout.write("^-- Run with --zones to output a new country table.\n")
             else:
                 sys.stdout.write("All needed country names were found.\n")
+        elif opt == "--save":
+            c = CountryLookup()
+            cd = c.get_country_dict()
+            #path = os.path.join(__datapath__, COUNTRY_DB)
+            file(COUNTRY_DB, "w").write(repr([cd, COUNTRY_DB_VER, time.time()]))
         elif opt in ("-h", "--help"):
             usage()
         else:
             sys.exit(42) # Impossible...
 
+
 def prettify(prefix, obj, line_end, suffix):
     lines = ("    " + repr(obj).strip("{}").replace(line_end+" ", line_end+"\n    ") + ",").splitlines()
     lines.sort()
     sys.stdout.write("%s{\n%s\n%s}\n" % (prefix, "\n".join(lines), suffix))
+    # import pprint
+    # pp = pprint.PrettyPrinter(indent=4)
+    # pp.pprint(networks)
+
 
 def usage():
-    sys.stderr.write("country_lookup.py [--map] [--zones] [--test] [--help]\n")
+    sys.stderr.write("country_lookup.py [--map] [--zones] [--test] [--save] [--help]\n")
     sys.exit(1)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
-
-# vim: sw=4 ts=8 et

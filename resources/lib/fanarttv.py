@@ -4,8 +4,11 @@ try:
 except ImportError:
     import json
 
-# This uses the artwork-downloader API key -- I assume that is OK for this XBMC script.
-API_KEY = '586118be1ac673f74963cc284d46bd8e'
+# get user defined apikey
+import xbmcaddon
+__addon__ = xbmcaddon.Addon()
+API_KEY = __addon__.getSetting("fanarttv_key") or "ed4b784f97227358b31ca4dd966a04f1"
+
 API_URL_TV = 'http://webservice.fanart.tv/v3/tv/%s?api_key=%s'
 
 class FanartTV(object):
