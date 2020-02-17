@@ -207,6 +207,15 @@
 					<animation effect="fade" time="600">Visible</animation>
 					<animation effect="fade" time="600">Hidden</animation>
 				</control>
+				<control type="image">
+				    <description>Bg</description>
+				    <posx>0</posx>
+				    <posy>0</posy>
+				    <width>1280</width>
+				    <height>94</height>
+				    <texture background="true">TVGuide-Floor.png</texture>
+				    <visible>yes</visible>
+				</control>
 			</control>
 			<control type="group">
 				<visible>Control.HasFocus(200)</visible>
