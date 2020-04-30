@@ -3,6 +3,7 @@ import os, sys, re, socket, urllib, unicodedata, threading
 from traceback import print_exc
 from datetime import datetime, date, timedelta
 from dateutil import tz
+from dateutil.tz import tzlocal
 from operator import itemgetter
 import xbmc, xbmcaddon, xbmcgui, xbmcvfs
 try:
@@ -129,6 +130,18 @@ def lc_stripped_name(show_name):
 def maybe_int(d, key, default = 0):
     v = d.get(key, str(default))
     return int(v) if INT_REGEX.match(v) else v
+
+# https://github.com/boto/botocore/blob/develop/botocore/compat.py
+def get_tzinfo_options():
+    # Due to dateutil/dateutil#197, Windows may fail to parse times in the past
+    # with the system clock. We can alternatively fallback to tzwininfo when
+    # this happens, which will get time info from the Windows registry.
+    if sys.platform == 'win32':
+        from dateutil.tz import tzwinlocal
+        return (tzlocal, tzwinlocal)
+    else:
+        return (tzlocal,)
+
 
 class NextAired:
     def __init__(self):
@@ -935,7 +948,12 @@ class NextAired:
             airtime = None
         if airtime is not None:
             hh_mm = airtime.strftime('%H:%M')
-            dt = datetime.combine(self.date, airtime).replace(tzinfo=tzinfo).astimezone(tz.tzlocal())
+            dt = datetime.combine(self.date, airtime).replace(tzinfo=tzinfo)
+            for mtzinfo in get_tzinfo_options():
+                try:
+                    dt = dt.astimezone(mtzinfo())
+                except:
+                    log("#### failed to parse timestamp with '%s'." % mtzinfo.__name__, level=1)
             early_aired = '1900-01-01T' + dt.strftime('%H:%M:%S%z')
         else:
             hh_mm = ''
@@ -989,7 +1007,11 @@ class NextAired:
                         continue
                     dt = datetime.combine(first_aired, airtime).replace(tzinfo=tzinfo)
                     if hh_mm != '':
-                        dt = dt.astimezone(tz.tzlocal())
+                        for mtzinfo in get_tzinfo_options():
+                            try:
+                                dt = dt.astimezone(mtzinfo())
+                            except:
+                                log("#### failed to parse timestamp with '%s'." % mtzinfo.__name__, level=1)
                     got_ep = {
                             'name': normalize(ep, 'EpisodeName'),
                             'sn': maybe_int(ep, 'SeasonNumber'),
@@ -1031,7 +1053,11 @@ class NextAired:
                     first_aired = TheTVDB.convert_date(ep['date'])
                     dt = datetime.combine(first_aired, airtime).replace(tzinfo=tzinfo)
                     if hh_mm != '':
-                        dt = dt.astimezone(tz.tzlocal())
+                        for mtzinfo in get_tzinfo_options():
+                            try:
+                                dt = dt.astimezone(mtzinfo())
+                            except:
+                                log("#### failed to parse timestamp with '%s'." % mtzinfo.__name__, level=1)
                     ep['aired'] = dt.isoformat()
                     ep['wday'] = dt.weekday()
         else:

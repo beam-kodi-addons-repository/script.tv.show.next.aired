@@ -18,7 +18,7 @@
 				<texture>TVGuide-Background.jpg</texture>
 			</control>
 			<control type="group">
-				<visible>!String.IsEmpty(Window(Home).Property(TVGuide.BackgroundFanart))</visible>
+				<visible>!String.!IsEmpty(Window(Home).Property(TVGuide.BackgroundFanart))</visible>
 <!--REPEAT
 [1] C = 200..206
 [2] C = 200..215
